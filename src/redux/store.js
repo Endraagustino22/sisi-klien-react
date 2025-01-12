@@ -1,9 +1,9 @@
 import { configureStore } from '@reduxjs/toolkit';
-import laporanReducer from './laporanSlice';
+import authReducer from './authSlice';
 
 const store = configureStore({
   reducer: {
-    laporan: laporanReducer,
+    auth: authReducer,
   },
 });
 

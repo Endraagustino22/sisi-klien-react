@@ -1,55 +1,80 @@
-import React, { useEffect, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchLaporanData, deleteLaporan } from '../redux/laporanSlice';
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 import EditLaporanModal from "./EditLaporanModal";
-import { Link } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 
 const LaporanBencanaList = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [laporanData, setLaporanData] = useState([]);
   const [selectedLaporan, setSelectedLaporan] = useState(null);
-  const dispatch = useDispatch();
-  const { data: laporanData, loading, error } = useSelector((state) => state.laporan);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Ambil token dari Redux
+  const token = useSelector((state) => state.auth.token);
 
   useEffect(() => {
-    dispatch(fetchLaporanData());
-  }, [dispatch]);
+    // Fetch data dari API
+    const fetchLaporanData = async () => {
+      if (!token) return; // Jika token tidak ada, hentikan proses
 
-  const handleDelete = (id) => {
-    Swal.fire({
-      title: 'Apakah Anda yakin?',
-      text: 'Data akan dihapus secara permanen!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Ya, hapus!',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        dispatch(deleteLaporan(id))
-          .then(() =>
-            Swal.fire('Dihapus!', 'Data telah dihapus.', 'success')
-          )
-          .catch(() =>
-            Swal.fire('Error!', 'Gagal menghapus data.', 'error')
-          );
+      try {
+        const response = await axios.get("https://slategrey-llama-121731.hostingersite.com/api/laporan-bencana", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setLaporanData(response.data);
+      } catch (error) {
+        console.error("Error fetching data", error);
       }
-    });
-  };
+    };
 
-  // Handle Edit button click
+    fetchLaporanData();
+  }, [token]);
+
+  // Handle klik tombol edit
   const handleEditClick = (laporan) => {
     setSelectedLaporan(laporan);
     setIsModalOpen(true);
   };
-  console.log(isModalOpen);
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error}</p>;
+  const handleDelete = async (id) => {
+    if (!token) return; // Pastikan token ada sebelum melakukan request
+
+    try {
+      const response = await axios.delete(
+        `https://slategrey-llama-121731.hostingersite.com/api/laporan-bencana/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Tampilkan pesan sukses
+      Swal.fire({
+        icon: "success",
+        title: "Data Dihapus",
+        text: response.data.message,
+      });
+
+      // Hapus data dari state
+      setLaporanData((prevData) =>
+        prevData.filter((laporan) => laporan.id !== id)
+      );
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Gagal Menghapus Data",
+        text: error.response?.data?.message || "Terjadi kesalahan",
+      });
+    }
+  };
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className='font-serif font-bold text-center text-2xl'>Laporan Bencana Gunung Berapi</h1>
       <Link to="/create">
         <button className="bg-blue-500 text-white p-2 rounded mb-4 hover:bg-blue-600 transition duration-200">
           Tambah Laporan
@@ -101,11 +126,13 @@ const LaporanBencanaList = () => {
           </tbody>
         </table>
       </div>
+
       {isModalOpen && (
         <EditLaporanModal
-        laporan={selectedLaporan}
-        setIsModalOpen={setIsModalOpen}
-      />
+          laporan={selectedLaporan}
+          setIsModalOpen={setIsModalOpen}
+          setLaporanData={setLaporanData}
+        />
       )}
     </div>
   );
